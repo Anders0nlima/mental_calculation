@@ -1,18 +1,27 @@
 import { useState, useEffect } from "react";
 import styles from "./FlashTest.module.css";
-
+import SettingsModal from "./SettingsModal";
 
 export default function FlashTest() {
-  const [stage, setStage] = useState("config"); // config | flash | answer | result
+  const [stage, setStage] = useState("idle"); // idle | flash | answer | result
   const [sequence, setSequence] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [flashTime, setFlashTime] = useState(800); 
+  const [flashTime, setFlashTime] = useState(800);
   const [intervalTime, setIntervalTime] = useState(300);
-  const [count, setCount] = useState(5); 
-  const [digits, setDigits] = useState(2); 
+  const [count, setCount] = useState(5);
+  const [digits, setDigits] = useState(2);
   const [userAnswer, setUserAnswer] = useState("");
   const [correctAnswer, setCorrectAnswer] = useState(0);
   const [score, setScore] = useState(null);
+
+  const [showSettings, setShowSettings] = useState(false);
+
+  const [subtraction, setSubtraction] = useState(false);
+  const [continuousMode, setContinuousMode] = useState(false);
+  const [voiceLang, setVoiceLang] = useState("pt-BR");
+  const [fontSize, setFontSize] = useState(48);
+  const [fontColor, setFontColor] = useState("#000000");
+  const [backgroundColor, setBackgroundColor] = useState("#ffffff");
 
   const generateSequence = () => {
     const seq = [];
@@ -28,6 +37,13 @@ export default function FlashTest() {
     const seq = generateSequence();
     setSequence(seq);
     setCorrectAnswer(seq.reduce((a, b) => a + b, 0));
+    setStage("flash");
+    setCurrentIndex(0);
+    setUserAnswer("");
+    setScore(null);
+  };
+
+  const replayTest = () => {
     setStage("flash");
     setCurrentIndex(0);
   };
@@ -52,53 +68,76 @@ export default function FlashTest() {
 
   return (
     <div className={styles.container}>
-      {stage === "config" && (
-        <div className={styles.config}>
-          <h2>Configuração do Teste</h2>
+      {/* Área do número */}
+      <div className={styles.flashArea}>
+        {stage === "flash" && currentIndex < sequence.length
+          ? sequence[currentIndex]
+          : ""}
+        {stage === "result" && (
           <div>
-            <label>Qtd. Números: </label>
-            <input type="number" value={count} onChange={(e) => setCount(Number(e.target.value))} />
+            {score ? "✅ Acertou!" : "❌ Errou"}<br />
+            <small>Resposta correta: {correctAnswer}</small>
           </div>
-          <div>
-            <label>Dígitos: </label>
-            <input type="number" value={digits} onChange={(e) => setDigits(Number(e.target.value))} />
-          </div>
-          <div>
-            <label>Flash (ms): </label>
-            <input type="number" value={flashTime} onChange={(e) => setFlashTime(Number(e.target.value))} />
-          </div>
-          <div>
-            <label>Intervalo (ms): </label>
-            <input type="number" value={intervalTime} onChange={(e) => setIntervalTime(Number(e.target.value))} />
-          </div>
-          <button onClick={startTest}>Iniciar</button>
-        </div>
-      )}
+        )}
+      </div>
 
-      {stage === "flash" && (
-        <div className={styles.flashNumber}>
-          {currentIndex < sequence.length ? sequence[currentIndex] : ""}
-        </div>
-      )}
+      {/* Barra inferior */}
+      <div className={styles.bottomBar}>
+        <button className={`${styles.button} ${styles.play}`} onClick={startTest}>
+          Play
+        </button>
+        <button className={`${styles.button} ${styles.replay}`} onClick={replayTest}>
+          Replay
+        </button>
+        <button className={`${styles.button} ${styles.settings}`} onClick={() => setShowSettings(true)}>
+          Settings
+        </button>
+        <button className={`${styles.button} ${styles.history}`}>
+          History
+        </button>
 
-      {stage === "answer" && (
-        <div className={styles.answer}>
-          <h2>Digite o resultado:</h2>
-          <input
-            type="number"
-            value={userAnswer}
-            onChange={(e) => setUserAnswer(e.target.value)}
-          />
-          <button onClick={checkAnswer}>Enviar</button>
-        </div>
-      )}
+        <input
+          type="number"
+          placeholder="Your answer"
+          value={userAnswer}
+          onChange={(e) => setUserAnswer(e.target.value)}
+          className={styles.inputAnswer}
+          disabled={stage !== "answer"}
+        />
+        <button
+          className={`${styles.button} ${styles.check}`}
+          onClick={checkAnswer}
+          disabled={stage !== "answer"}
+        >
+          Check
+        </button>
+      </div>
 
-      {stage === "result" && (
-        <div className={styles.result}>
-          <h2>{score ? "✅ Acertou!" : "❌ Errou"}</h2>
-          <p>Resposta correta: {correctAnswer}</p>
-          <button onClick={() => setStage("config")}>Novo Teste</button>
-        </div>
+      {/* Modal de Configurações */}
+      {showSettings && (
+        <SettingsModal
+          onClose={() => setShowSettings(false)}
+          count={count}
+          setCount={setCount}
+          digits={digits}
+          setDigits={setDigits}
+          flashTime={flashTime}
+          setFlashTime={setFlashTime}
+          intervalTime={intervalTime}
+          setIntervalTime={setIntervalTime}
+          subtraction={subtraction}
+          setSubtraction={setSubtraction}
+          continuousMode={continuousMode}
+          setContinuousMode={setContinuousMode}
+          voiceLang={voiceLang}
+          setVoiceLang={setVoiceLang}
+          fontSize={fontSize}
+          setFontSize={setFontSize}
+          fontColor={fontColor}
+          setFontColor={setFontColor}
+          backgroundColor={backgroundColor}
+          setBackgroundColor={setBackgroundColor}
+       />
       )}
     </div>
   );

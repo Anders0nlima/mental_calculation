@@ -1,33 +1,91 @@
 .container {
-  font-family: sans-serif;
-  padding: 20px;
-  text-align: center;
+  background-color: #c4d5e0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-family: Arial, sans-serif;
 }
 
-.config input {
-  margin: 5px;
-  padding: 5px;
-}
-
-.flashNumber {
-  font-size: 64px;
+.flashArea {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 72px;
   font-weight: bold;
-  margin-top: 100px;
+  color: #1e1e1e;
 }
 
-.answer input {
-  padding: 8px;
-  font-size: 18px;
+.bottomBar {
+  background-color: #cbb5a4;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-button {
-  margin-top: 10px;
-  padding: 8px 14px;
-  font-size: 16px;
+.button {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 4px;
+  font-size: 15px;
   cursor: pointer;
 }
 
-.result {
-  font-size: 20px;
-  margin-top: 20px;
+.play {
+  background-color: #2a8469;
+  color: white;
+}
+
+.replay {
+  background-color: #9c8f85;
+  color: white;
+}
+
+.settings, .history, .check {
+  background-color: white;
+  color: #333;
+  border: 1px solid #ccc;
+}
+
+.inputAnswer {
+  padding: 6px;
+  font-size: 15px;
+  border-radius: 4px;
+  border: none;
+  outline: none;
+  background-color: #1e1e1e;
+  color: white;
+}
+
+/* Modal */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  min-width: 300px;
+}
+
+.modal h2 {
+  margin-bottom: 15px;
+}
+
+.modal label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.modal input {
+  margin-left: 5px;
+  padding: 5px;
 }
