@@ -6,28 +6,28 @@ export default function FlashTest() {
   const [stage, setStage] = useState("idle"); // idle | flash | answer | result
   const [sequence, setSequence] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [flashTime, setFlashTime] = useState(800);
-  const [intervalTime, setIntervalTime] = useState(300);
-  const [count, setCount] = useState(5);
-  const [digits, setDigits] = useState(2);
   const [userAnswer, setUserAnswer] = useState("");
   const [correctAnswer, setCorrectAnswer] = useState(0);
   const [score, setScore] = useState(null);
-
   const [showSettings, setShowSettings] = useState(false);
 
-  const [subtraction, setSubtraction] = useState(false);
-  const [continuousMode, setContinuousMode] = useState(false);
-  const [voiceLang, setVoiceLang] = useState("pt-BR");
-  const [fontSize, setFontSize] = useState(48);
-  const [fontColor, setFontColor] = useState("#000000");
-  const [backgroundColor, setBackgroundColor] = useState("#ffffff");
+  // Estado unificado de configurações
+  const [settings, setSettings] = useState({
+    digits: 1,
+    count: 5,
+    flashTime: 800,
+    intervalTime: 300,
+  });
+
+  const handleChange = (field, value) => {
+    setSettings(prev => ({ ...prev, [field]: value }));
+  };
 
   const generateSequence = () => {
     const seq = [];
-    for (let i = 0; i < count; i++) {
-      const min = Math.pow(10, digits - 1);
-      const max = Math.pow(10, digits) - 1;
+    for (let i = 0; i < settings.count; i++) {
+      const min = Math.pow(10, settings.digits - 1);
+      const max = Math.pow(10, settings.digits) - 1;
       seq.push(Math.floor(Math.random() * (max - min + 1)) + min);
     }
     return seq;
@@ -52,14 +52,14 @@ export default function FlashTest() {
     if (stage === "flash") {
       if (currentIndex < sequence.length) {
         const timer = setTimeout(() => {
-          setCurrentIndex((prev) => prev + 1);
-        }, flashTime + intervalTime);
+          setCurrentIndex(prev => prev + 1);
+        }, settings.flashTime + settings.intervalTime);
         return () => clearTimeout(timer);
       } else {
         setStage("answer");
       }
     }
-  }, [stage, currentIndex]);
+  }, [stage, currentIndex, sequence.length, settings.flashTime, settings.intervalTime]);
 
   const checkAnswer = () => {
     setScore(Number(userAnswer) === correctAnswer);
@@ -70,9 +70,7 @@ export default function FlashTest() {
     <div className={styles.container}>
       {/* Área do número */}
       <div className={styles.flashArea}>
-        {stage === "flash" && currentIndex < sequence.length
-          ? sequence[currentIndex]
-          : ""}
+        {stage === "flash" && currentIndex < sequence.length ? sequence[currentIndex] : ""}
         {stage === "result" && (
           <div>
             {score ? "✅ Acertou!" : "❌ Errou"}<br />
@@ -116,28 +114,10 @@ export default function FlashTest() {
       {/* Modal de Configurações */}
       {showSettings && (
         <SettingsModal
+          settings={settings}
+          handleChange={handleChange}
           onClose={() => setShowSettings(false)}
-          count={count}
-          setCount={setCount}
-          digits={digits}
-          setDigits={setDigits}
-          flashTime={flashTime}
-          setFlashTime={setFlashTime}
-          intervalTime={intervalTime}
-          setIntervalTime={setIntervalTime}
-          subtraction={subtraction}
-          setSubtraction={setSubtraction}
-          continuousMode={continuousMode}
-          setContinuousMode={setContinuousMode}
-          voiceLang={voiceLang}
-          setVoiceLang={setVoiceLang}
-          fontSize={fontSize}
-          setFontSize={setFontSize}
-          fontColor={fontColor}
-          setFontColor={setFontColor}
-          backgroundColor={backgroundColor}
-          setBackgroundColor={setBackgroundColor}
-       />
+        />
       )}
     </div>
   );

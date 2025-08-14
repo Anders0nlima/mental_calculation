@@ -1,73 +1,63 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import styles from "./SettingsModal.module.css";
 
-export default function SettingsModal({ onClose, onSave, initialSettings }) {
-  const [settings, setSettings] = useState({
-    digits: 1,
-    rows: 5,
-    flashTime: 500,
-    timeout: 500,
-    subtractions: false,
-    continuous: false,
-    voiceLang: "en-US",
-    fontSize: 316.5,
-    fontColor: "#ffffff",
-    backgroundColor: "#a0b4c9"
-  });
+export default function SettingsModal({ settings, handleChange, onClose }) {
+  const inc = (field, step = 1) =>
+    handleChange(field, Math.min(9, Math.max(1, (settings[field] || 0) + step)));
 
-  useEffect(() => {
-    if (initialSettings) setSettings(initialSettings);
-  }, [initialSettings]);
+  const dec = (field, step = 1) =>
+    handleChange(field, Math.min(9, Math.max(1, (settings[field] || 0) - step)));
 
-  const handleChange = (field, value) =>
-    setSettings(prev => ({ ...prev, [field]: value }));
-
-  const handleCheckbox = (field) =>
-    setSettings(prev => ({ ...prev, [field]: !prev[field] }));
-
-  const handleSave = () => {
-    onSave(settings);
-    onClose();
+  const safeParse = (val, def = 1) => {
+    const n = parseInt(val, 10);
+    if (!Number.isFinite(n)) return def;
+    return Math.min(9, Math.max(1, n)); // limite 1 a 9
   };
 
   return (
     <div className={styles.overlay}>
       <div className={styles.modal}>
+        {/* Header com fundo diferente e X ao lado */}
         <div className={styles.header}>
           <h3>Settings</h3>
           <button onClick={onClose} className={styles.closeBtn}>✕</button>
         </div>
 
-        {/* Number */}
+        {/* Conteúdo */}
         <div className={styles.section}>
           <h4>Number</h4>
 
+          {/* Number of digits com controle ▲ ▼ e foco com brilho */}
           <div className={styles.inputGroup}>
             <span className={styles.prepend}>Number of digits</span>
-            <input
-              type="number"
-              className={styles.input}
-              value={settings.digits}
-              onChange={(e) =>
-                handleChange("digits", parseInt(e.target.value || "0", 10))
-              }
-            />
+            <div className={styles.numberControl}>
+              <input
+                type="number"
+                className={styles.numberInput}
+                value={settings.digits}
+                onChange={(e) =>
+                  handleChange("digits", safeParse(e.target.value))
+                }
+              />
+              <div className={styles.buttons}>
+                <button type="button" onClick={() => inc("digits")}>▲</button>
+                <button type="button" onClick={() => dec("digits")}>▼</button>
+              </div>
+            </div>
           </div>
 
+          {/* Qtd. Números (count) */}
           <div className={styles.inputGroup}>
-            <span className={styles.prepend}>Number of rows</span>
+            <span className={styles.prepend}>Qtd. Números</span>
             <input
               type="number"
               className={styles.input}
-              value={settings.rows}
-              onChange={(e) =>
-                handleChange("rows", parseInt(e.target.value || "0", 10))
-              }
+              value={settings.count}
+              onChange={(e) => handleChange("count", safeParse(e.target.value))}
             />
           </div>
         </div>
 
-        {/* Time */}
         <div className={styles.section}>
           <h4>Time</h4>
 
@@ -77,109 +67,23 @@ export default function SettingsModal({ onClose, onSave, initialSettings }) {
               type="number"
               className={styles.input}
               value={settings.flashTime}
-              onChange={(e) =>
-                handleChange("flashTime", parseInt(e.target.value || "0", 10))
-              }
+              onChange={(e) => handleChange("flashTime", safeParse(e.target.value))}
             />
           </div>
 
           <div className={styles.inputGroup}>
-            <span className={styles.prepend}>Timeout (ms)</span>
+            <span className={styles.prepend}>Intervalo (ms)</span>
             <input
               type="number"
               className={styles.input}
-              value={settings.timeout}
-              onChange={(e) =>
-                handleChange("timeout", parseInt(e.target.value || "0", 10))
-              }
-            />
-          </div>
-        </div>
-
-        {/* Mode of operation */}
-        <div className={styles.section}>
-          <h4>Mode of operation</h4>
-          <label className={styles.checkboxRow}>
-            <input
-              type="checkbox"
-              checked={settings.subtractions}
-              onChange={() => handleCheckbox("subtractions")}
-            />
-            Subtractions
-          </label>
-          <label className={styles.checkboxRow}>
-            <input
-              type="checkbox"
-              checked={settings.continuous}
-              onChange={() => handleCheckbox("continuous")}
-            />
-            Continuous mode (hands free)
-          </label>
-        </div>
-
-        {/* Text To Speech */}
-        <div className={styles.section}>
-          <h4>Text To Speech</h4>
-          <div className={styles.inputGroup}>
-            <span className={styles.prepend}>Voice Language</span>
-            <select
-              className={`${styles.input} ${styles.select}`}
-              value={settings.voiceLang}
-              onChange={(e) => handleChange("voiceLang", e.target.value)}
-            >
-              <option value="en-US">en-US</option>
-              <option value="pt-BR">pt-BR</option>
-              <option value="ja-JP">ja-JP</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Font */}
-        <div className={styles.section}>
-          <h4>Font</h4>
-
-          <div className={styles.inputGroup}>
-            <span className={styles.prepend}>Size</span>
-            <div className={`${styles.input} ${styles.fontSizeCtrl}`}>
-              <button
-                type="button"
-                onClick={() => handleChange("fontSize", Math.max(1, settings.fontSize - 1))}
-              >
-                −
-              </button>
-              <span className={styles.fontSizeValue}>{settings.fontSize}</span>
-              <button
-                type="button"
-                onClick={() => handleChange("fontSize", settings.fontSize + 1)}
-              >
-                +
-              </button>
-            </div>
-          </div>
-
-          <div className={styles.inputGroup}>
-            <span className={styles.prepend}>Color</span>
-            <input
-              type="color"
-              className={`${styles.input} ${styles.color}`}
-              value={settings.fontColor}
-              onChange={(e) => handleChange("fontColor", e.target.value)}
-            />
-          </div>
-
-          <div className={styles.inputGroup}>
-            <span className={styles.prepend}>Background</span>
-            <input
-              type="color"
-              className={`${styles.input} ${styles.color}`}
-              value={settings.backgroundColor}
-              onChange={(e) => handleChange("backgroundColor", e.target.value)}
+              value={settings.intervalTime}
+              onChange={(e) => handleChange("intervalTime", safeParse(e.target.value))}
             />
           </div>
         </div>
 
         <div className={styles.footer}>
-          <button onClick={handleSave}>Close</button>
+          <button onClick={onClose}>Close</button>
         </div>
       </div>
     </div>
