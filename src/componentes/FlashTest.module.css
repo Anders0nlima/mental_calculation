@@ -1,5 +1,5 @@
 .container {
-  background-color: #c4d5e0;
+  background-color: white;
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -18,7 +18,7 @@
 }
 
 .bottomBar {
-  background-color: #cbb5a4;
+  background-color: rgba(0, 0, 0, 0.199);
   padding: 10px 20px;
   display: flex;
   align-items: center;
