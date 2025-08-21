@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect } from "react"; 
 import styles from "./FlashTest.module.css";
 import SettingsModal from "./SettingsModal";
 
@@ -6,17 +6,18 @@ export default function FlashTest() {
   const [stage, setStage] = useState("idle"); // idle | flash | answer | result
   const [sequence, setSequence] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isShowing, setIsShowing] = useState(false); // controla se o número está visível
   const [userAnswer, setUserAnswer] = useState("");
   const [correctAnswer, setCorrectAnswer] = useState(0);
   const [score, setScore] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
 
-  // Estado unificado de configurações
+  // Configurações unificadas
   const [settings, setSettings] = useState({
     digits: 1,
     count: 5,
-    flashTime: 800,
-    intervalTime: 300,
+    flashTime: 800,     // ms
+    intervalTime: 300,  // ms
   });
 
   const handleChange = (field, value) => {
@@ -39,6 +40,7 @@ export default function FlashTest() {
     setCorrectAnswer(seq.reduce((a, b) => a + b, 0));
     setStage("flash");
     setCurrentIndex(0);
+    setIsShowing(true);
     setUserAnswer("");
     setScore(null);
   };
@@ -46,19 +48,34 @@ export default function FlashTest() {
   const replayTest = () => {
     setStage("flash");
     setCurrentIndex(0);
+    setIsShowing(true);
   };
 
+  // Lógica de exibição com 2 fases: mostrar (flashTime) e intervalo (intervalTime)
   useEffect(() => {
-    if (stage === "flash") {
-      if (currentIndex < sequence.length) {
-        const timer = setTimeout(() => {
-          setCurrentIndex(prev => prev + 1);
-        }, settings.flashTime + settings.intervalTime);
-        return () => clearTimeout(timer);
-      } else {
-        setStage("answer");
-      }
+    if (stage !== "flash") return;
+
+    // terminou a sequência -> vai para answer (mostra "?")
+    if (currentIndex >= sequence.length) {
+      setIsShowing(false);
+      setStage("answer");
+      return;
     }
+
+    // Fase 1: garante que o número atual esteja visível por flashTime
+    setIsShowing(true);
+    const showTimer = setTimeout(() => {
+      // Fase 2: esconde durante o intervalo, depois avança índice
+      setIsShowing(false);
+      const gapTimer = setTimeout(() => {
+        setCurrentIndex(prev => prev + 1);
+      }, Math.max(0, settings.intervalTime));
+
+      // cleanup do gapTimer
+      return () => clearTimeout(gapTimer);
+    }, Math.max(0, settings.flashTime));
+
+    return () => clearTimeout(showTimer);
   }, [stage, currentIndex, sequence.length, settings.flashTime, settings.intervalTime]);
 
   const checkAnswer = () => {
@@ -70,7 +87,12 @@ export default function FlashTest() {
     <div className={styles.container}>
       {/* Área do número */}
       <div className={styles.flashArea}>
-        {stage === "flash" && currentIndex < sequence.length ? sequence[currentIndex] : ""}
+        {stage === "flash" && currentIndex < sequence.length && (
+          isShowing ? sequence[currentIndex] : ""
+        )}
+
+        {stage === "answer" && "?"}
+
         {stage === "result" && (
           <div>
             {score ? "✅ Acertou!" : "❌ Errou"}<br />
