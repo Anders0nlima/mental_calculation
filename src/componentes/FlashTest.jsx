@@ -6,24 +6,27 @@ export default function FlashTest() {
   const [stage, setStage] = useState("idle"); // idle | flash | answer | result
   const [sequence, setSequence] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isShowing, setIsShowing] = useState(false); // controla se o número está visível
+  const [isShowing, setIsShowing] = useState(false);
   const [userAnswer, setUserAnswer] = useState("");
   const [correctAnswer, setCorrectAnswer] = useState(0);
   const [score, setScore] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
 
-  // Configurações unificadas
+  // Configurações
   const [settings, setSettings] = useState({
     digits: 1,
     count: 5,
-    flashTime: 800,     // ms
-    intervalTime: 300,  // ms
+    flashTime: 800,
+    intervalTime: 300,
+    voice: false,         // 👈 agora tem voice
+    language: "pt-BR",    // 👈 idioma da fala
   });
 
   const handleChange = (field, value) => {
-    setSettings(prev => ({ ...prev, [field]: value }));
+    setSettings((prev) => ({ ...prev, [field]: value }));
   };
 
+  // 🔢 gera a sequência de números
   const generateSequence = () => {
     const seq = [];
     for (let i = 0; i < settings.count; i++) {
@@ -34,6 +37,7 @@ export default function FlashTest() {
     return seq;
   };
 
+  // ▶️ iniciar teste
   const startTest = () => {
     const seq = generateSequence();
     setSequence(seq);
@@ -45,39 +49,49 @@ export default function FlashTest() {
     setScore(null);
   };
 
+  // 🔁 repetir
   const replayTest = () => {
     setStage("flash");
     setCurrentIndex(0);
     setIsShowing(true);
   };
 
-  // Lógica de exibição com 2 fases: mostrar (flashTime) e intervalo (intervalTime)
+  // 🔊 falar número
+  const speakNumber = (num) => {
+    if (!settings.voice) return; // 👈 só fala se a voz estiver ativada
+    if (!window.speechSynthesis) return;
+    const utterance = new SpeechSynthesisUtterance(num.toString());
+    utterance.lang = settings.language;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Exibição dos números
   useEffect(() => {
     if (stage !== "flash") return;
 
-    // terminou a sequência -> vai para answer (mostra "?")
     if (currentIndex >= sequence.length) {
       setIsShowing(false);
       setStage("answer");
       return;
     }
 
-    // Fase 1: garante que o número atual esteja visível por flashTime
     setIsShowing(true);
+    speakNumber(sequence[currentIndex]); // 🔊 fala o número
+
     const showTimer = setTimeout(() => {
-      // Fase 2: esconde durante o intervalo, depois avança índice
       setIsShowing(false);
       const gapTimer = setTimeout(() => {
-        setCurrentIndex(prev => prev + 1);
+        setCurrentIndex((prev) => prev + 1);
       }, Math.max(0, settings.intervalTime));
 
-      // cleanup do gapTimer
       return () => clearTimeout(gapTimer);
     }, Math.max(0, settings.flashTime));
 
     return () => clearTimeout(showTimer);
-  }, [stage, currentIndex, sequence.length, settings.flashTime, settings.intervalTime]);
+  }, [stage, currentIndex, sequence, settings.flashTime, settings.intervalTime, settings.language, settings.voice]);
 
+  // ✅ verificar resposta
   const checkAnswer = () => {
     setScore(Number(userAnswer) === correctAnswer);
     setStage("result");
@@ -133,7 +147,7 @@ export default function FlashTest() {
         </button>
       </div>
 
-      {/* Modal de Configurações */}
+      {/* Modal */}
       {showSettings && (
         <SettingsModal
           settings={settings}

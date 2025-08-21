@@ -31,7 +31,7 @@ export default function SettingsModal({ settings, handleChange, onClose }) {
         {/* Number */}
         <div className={styles.section}>
           <h4>Number</h4>
-
+          {/* Digits */}
           <div className={styles.inputGroup}>
             <span className={styles.prepend}>Number of digits</span>
             <div className={styles.numberControl}>
@@ -50,6 +50,7 @@ export default function SettingsModal({ settings, handleChange, onClose }) {
             </div>
           </div>
 
+          {/* Count */}
           <div className={styles.inputGroup}>
             <span className={styles.prepend}>Qtd. Números</span>
             <div className={styles.numberControl}>
@@ -89,7 +90,7 @@ export default function SettingsModal({ settings, handleChange, onClose }) {
         {/* Time */}
         <div className={styles.section}>
           <h4>Time</h4>
-
+          {/* Flash */}
           <div className={styles.inputGroup}>
             <span className={styles.prepend}>Flash (ms)</span>
             <div className={styles.numberControl}>
@@ -103,28 +104,17 @@ export default function SettingsModal({ settings, handleChange, onClose }) {
                 }}
               />
               <div className={styles.buttons}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const newVal = Math.min(5000, (settings.flashTime || 1000) + 50);
-                    handleChange("flashTime", newVal);
-                  }}
-                >
-                  ▲
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const newVal = Math.max(50, (settings.flashTime || 1000) - 50);
-                    handleChange("flashTime", newVal);
-                  }}
-                >
-                  ▼
-                </button>
+                <button type="button" onClick={() =>
+                  handleChange("flashTime", Math.min(5000, (settings.flashTime || 1000) + 50))
+                }>▲</button>
+                <button type="button" onClick={() =>
+                  handleChange("flashTime", Math.max(50, (settings.flashTime || 1000) - 50))
+                }>▼</button>
               </div>
             </div>
           </div>
 
+          {/* Interval */}
           <div className={styles.inputGroup}>
             <span className={styles.prepend}>Intervalo (ms)</span>
             <div className={styles.numberControl}>
@@ -138,26 +128,44 @@ export default function SettingsModal({ settings, handleChange, onClose }) {
                 }}
               />
               <div className={styles.buttons}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const newVal = Math.min(5000, (settings.intervalTime || 1000) + 50);
-                    handleChange("intervalTime", newVal);
-                  }}
-                >
-                  ▲
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const newVal = Math.max(50, (settings.intervalTime || 1000) - 50);
-                    handleChange("intervalTime", newVal);
-                  }}
-                >
-                  ▼
-                </button>
+                <button type="button" onClick={() =>
+                  handleChange("intervalTime", Math.min(5000, (settings.intervalTime || 1000) + 50))
+                }>▲</button>
+                <button type="button" onClick={() =>
+                  handleChange("intervalTime", Math.max(50, (settings.intervalTime || 1000) - 50))
+                }>▼</button>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Voice */}
+        <div className={styles.section}>
+          <h4>Voice</h4>
+          <div className={styles.inputGroup}>
+            <span className={styles.prepend}>Ler números em voz alta</span>
+            <button
+              type="button"
+              className={`${styles.toggleBtn} ${settings.voice ? styles.active : ""}`}
+              onClick={() => handleChange("voice", !settings.voice)}
+            >
+              {settings.voice ? "🔊 Ativado" : "🔇 Desativado"}
+            </button>
+          </div>
+
+          <div className={styles.inputGroup}>
+            <span className={styles.prepend}>Idioma</span>
+            <select
+              className={styles.select}
+              value={settings.language}
+              onChange={(e) => handleChange("language", e.target.value)}
+            >
+              <option value="pt-BR">🇧🇷 Português</option>
+              <option value="en-US">🇺🇸 Inglês</option>
+              <option value="es-ES">🇪🇸 Espanhol</option>
+              <option value="fr-FR">🇫🇷 Francês</option>
+              <option value="de-DE">🇩🇪 Alemão</option>
+            </select>
           </div>
         </div>
 
