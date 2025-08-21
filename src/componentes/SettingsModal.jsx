@@ -31,7 +31,6 @@ export default function SettingsModal({ settings, handleChange, onClose }) {
         {/* Number */}
         <div className={styles.section}>
           <h4>Number</h4>
-          {/* Digits */}
           <div className={styles.inputGroup}>
             <span className={styles.prepend}>Number of digits</span>
             <div className={styles.numberControl}>
@@ -39,9 +38,7 @@ export default function SettingsModal({ settings, handleChange, onClose }) {
                 type="number"
                 className={styles.numberInput}
                 value={settings.digits}
-                onChange={(e) =>
-                  handleChange("digits", safeParse(e.target.value))
-                }
+                onChange={(e) => handleChange("digits", safeParse(e.target.value))}
               />
               <div className={styles.buttons}>
                 <button type="button" onClick={() => inc("digits")}>▲</button>
@@ -50,7 +47,6 @@ export default function SettingsModal({ settings, handleChange, onClose }) {
             </div>
           </div>
 
-          {/* Count */}
           <div className={styles.inputGroup}>
             <span className={styles.prepend}>Qtd. Números</span>
             <div className={styles.numberControl}>
@@ -60,28 +56,12 @@ export default function SettingsModal({ settings, handleChange, onClose }) {
                 value={settings.count}
                 onChange={(e) => {
                   const val = parseInt(e.target.value, 10);
-                  if (!isNaN(val)) {
-                    handleChange("count", Math.max(2, Math.min(25, val)));
-                  }
+                  if (!isNaN(val)) handleChange("count", Math.max(2, Math.min(25, val)));
                 }}
               />
               <div className={styles.buttons}>
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleChange("count", Math.min(25, (settings.count || 2) + 1))
-                  }
-                >
-                  ▲
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleChange("count", Math.max(2, (settings.count || 2) - 1))
-                  }
-                >
-                  ▼
-                </button>
+                <button type="button" onClick={() => handleChange("count", Math.min(25, (settings.count || 2) + 1))}>▲</button>
+                <button type="button" onClick={() => handleChange("count", Math.max(2, (settings.count || 2) - 1))}>▼</button>
               </div>
             </div>
           </div>
@@ -90,7 +70,6 @@ export default function SettingsModal({ settings, handleChange, onClose }) {
         {/* Time */}
         <div className={styles.section}>
           <h4>Time</h4>
-          {/* Flash */}
           <div className={styles.inputGroup}>
             <span className={styles.prepend}>Flash (ms)</span>
             <div className={styles.numberControl}>
@@ -104,17 +83,12 @@ export default function SettingsModal({ settings, handleChange, onClose }) {
                 }}
               />
               <div className={styles.buttons}>
-                <button type="button" onClick={() =>
-                  handleChange("flashTime", Math.min(5000, (settings.flashTime || 1000) + 50))
-                }>▲</button>
-                <button type="button" onClick={() =>
-                  handleChange("flashTime", Math.max(50, (settings.flashTime || 1000) - 50))
-                }>▼</button>
+                <button type="button" onClick={() => handleChange("flashTime", Math.min(5000, (settings.flashTime || 1000) + 50))}>▲</button>
+                <button type="button" onClick={() => handleChange("flashTime", Math.max(50, (settings.flashTime || 1000) - 50))}>▼</button>
               </div>
             </div>
           </div>
 
-          {/* Interval */}
           <div className={styles.inputGroup}>
             <span className={styles.prepend}>Intervalo (ms)</span>
             <div className={styles.numberControl}>
@@ -128,12 +102,8 @@ export default function SettingsModal({ settings, handleChange, onClose }) {
                 }}
               />
               <div className={styles.buttons}>
-                <button type="button" onClick={() =>
-                  handleChange("intervalTime", Math.min(5000, (settings.intervalTime || 1000) + 50))
-                }>▲</button>
-                <button type="button" onClick={() =>
-                  handleChange("intervalTime", Math.max(50, (settings.intervalTime || 1000) - 50))
-                }>▼</button>
+                <button type="button" onClick={() => handleChange("intervalTime", Math.min(5000, (settings.intervalTime || 1000) + 50))}>▲</button>
+                <button type="button" onClick={() => handleChange("intervalTime", Math.max(50, (settings.intervalTime || 1000) - 50))}>▼</button>
               </div>
             </div>
           </div>
@@ -160,12 +130,39 @@ export default function SettingsModal({ settings, handleChange, onClose }) {
               value={settings.language}
               onChange={(e) => handleChange("language", e.target.value)}
             >
-              <option value="pt-BR">🇧🇷 Português</option>
-              <option value="en-US">🇺🇸 Inglês</option>
-              <option value="es-ES">🇪🇸 Espanhol</option>
-              <option value="fr-FR">🇫🇷 Francês</option>
-              <option value="de-DE">🇩🇪 Alemão</option>
+              <option value="pt-BR">Português</option>
+              <option value="en-US">Inglês</option>
+              <option value="es-ES">Espanhol</option>
+              <option value="fr-FR">Francês</option>
+              <option value="de-DE">Alemão</option>
             </select>
+          </div>
+        </div>
+
+        {/* Mode of operation (accessories) */}
+        <div className={styles.section}>
+          <h4>Mode of operation</h4>
+
+          <div className={styles.inputGroup}>
+            <label className={styles.checkboxRow}>
+              <input
+                type="checkbox"
+                checked={settings.subtractions || false}
+                onChange={(e) => handleChange("subtractions", e.target.checked)}
+              />
+              Subtractions (mix + and -)
+            </label>
+          </div>
+
+          <div className={styles.inputGroup}>
+            <label className={styles.checkboxRow}>
+              <input
+                type="checkbox"
+                checked={settings.continuous || false}
+                onChange={(e) => handleChange("continuous", e.target.checked)}
+              />
+              Continuous mode (hands free)
+            </label>
           </div>
         </div>
 
