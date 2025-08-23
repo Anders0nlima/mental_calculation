@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import styles from "./FlashTest.module.css";
 import SettingsModal from "./SettingsModal";
+import HistoryModal from "./HistoryModal";
 
 export default function FlashTest() {
   const [stage, setStage] = useState("idle"); // idle | flash | answer | result
@@ -10,7 +11,13 @@ export default function FlashTest() {
   const [userAnswer, setUserAnswer] = useState("");
   const [correctAnswer, setCorrectAnswer] = useState(0);
   const [score, setScore] = useState(null);
+
+  // modais
   const [showSettings, setShowSettings] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+
+  // histórico
+  const [history, setHistory] = useState([]);
 
   // controla ciclo contínuo
   const [isRunning, setIsRunning] = useState(false);
@@ -20,6 +27,9 @@ export default function FlashTest() {
   const gapTimerRef = useRef(null);
   const resultTimerRef = useRef(null);
   const answerTimerRef = useRef(null);
+
+  // input ref para focar automaticamente
+  const inputRef = useRef(null);
 
   // ⚙️ Configurações
   const [settings, setSettings] = useState({
@@ -70,6 +80,19 @@ export default function FlashTest() {
     }
 
     return seq;
+  };
+
+  // salva sequência no histórico (apenas no modo normal)
+  const saveToHistory = (seq) => {
+    const expression = seq
+      .map((n, idx) =>
+        idx === 0 ? n : n < 0 ? `- ${Math.abs(n)}` : `+ ${n}`
+      )
+      .join(" ");
+    setHistory((prev) => {
+      const updated = [expression, ...prev];
+      return updated.slice(0, 20);
+    });
   };
 
   // start uma sequência
@@ -173,6 +196,9 @@ export default function FlashTest() {
   const checkAnswer = () => {
     setScore(Number(userAnswer) === correctAnswer);
     setStage("result");
+    if (!settings.continuous) {
+      saveToHistory(sequence); // salva apenas em modo normal
+    }
   };
 
   // ♾️ comportamento no resultado
@@ -198,7 +224,7 @@ export default function FlashTest() {
     if (!settings.continuous && isRunning && stage === "idle") {
       stopTest();
     }
-  }, [settings.continuous]);
+  }, [settings.continuous]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // cleanup global
   useEffect(() => {
@@ -211,6 +237,63 @@ export default function FlashTest() {
       {children}
     </span>
   );
+
+  // Focar input quando entrar em "answer"
+  useEffect(() => {
+    if (stage === "answer" && inputRef.current) {
+      inputRef.current.focus({ preventScroll: true });
+      // opcional: seleciona qualquer valor já digitado
+      inputRef.current.select?.();
+    }
+  }, [stage]);
+
+  // === Atalhos de teclado ===
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const key = e.key.toLowerCase();
+
+      // Sempre permitir Enter para checar, mesmo com foco no input
+      if (key === "enter" && stage === "answer") {
+        e.preventDefault();
+        checkAnswer();
+        return;
+      }
+
+      // Ignora outros atalhos se estiver digitando em um input/textarea
+      const tag = e.target.tagName.toLowerCase();
+      if (tag === "input" || tag === "textarea") return;
+
+      switch (key) {
+        case "p": // play/stop
+          if (isRunning) {
+            stopTest();
+          } else {
+            startTest();
+          }
+          break;
+
+        case "r": // replay (se já teve sequência)
+          if (!isRunning && sequence.length > 0) {
+            replayTest();
+          }
+          break;
+
+        case "s": // abre settings
+          setShowSettings(true);
+          break;
+
+        case "h": // abre histórico
+          setShowHistory(true);
+          break;
+
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isRunning, sequence.length, stage, userAnswer]); // deps atualizados
 
   return (
     <div className={styles.container}>
@@ -261,19 +344,29 @@ export default function FlashTest() {
         >
           Settings
         </button>
-        <button className={`${styles.button} ${styles.history}`}>
+        <button
+          className={`${styles.button} ${styles.history}`}
+          onClick={() => setShowHistory(true)}
+        >
           History
         </button>
 
         {!settings.continuous && (
           <>
             <input
+              ref={inputRef}
               type="number"
               placeholder="Your answer"
               value={userAnswer}
               onChange={(e) => setUserAnswer(e.target.value)}
               className={styles.inputAnswer}
               disabled={stage !== "answer"}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && stage === "answer") {
+                  e.preventDefault();
+                  checkAnswer();
+                }
+              }}
             />
             <button
               className={`${styles.button} ${styles.check}`}
@@ -291,6 +384,14 @@ export default function FlashTest() {
           settings={settings}
           handleChange={handleChange}
           onClose={() => setShowSettings(false)}
+        />
+      )}
+
+      {showHistory && (
+        <HistoryModal
+          isOpen={showHistory}
+          onClose={() => setShowHistory(false)}
+          history={history}
         />
       )}
     </div>
