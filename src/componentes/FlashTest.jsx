@@ -182,7 +182,7 @@ export default function FlashTest() {
 
     answerTimerRef.current = setTimeout(() => {
       setStage("result");
-    }, 1000);
+    }, 2000); // 3 segundos para a resposta aparecer "=X"
 
     return () => {
       if (answerTimerRef.current) {
@@ -212,7 +212,7 @@ export default function FlashTest() {
     if (settings.continuous && isRunning) {
       resultTimerRef.current = setTimeout(() => {
         startSequence();
-      }, 2000);
+      }, 2000); // 2 segundos para começar de novo
       return () => clearTimeout(resultTimerRef.current);
     } else {
       setIsRunning(false); // garante que no modo normal volte para idle
