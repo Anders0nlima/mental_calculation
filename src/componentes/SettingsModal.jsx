@@ -166,6 +166,33 @@ export default function SettingsModal({ settings, handleChange, onClose }) {
           </div>
         </div>
 
+        {/* Font */}
+<div className={styles.section}>
+  <h4>Font</h4>
+  <div className={styles.inputGroup}>
+    <span className={styles.prepend}>Size</span>
+    <div className={styles.numberControl}>
+      <input
+        type="number"
+        className={styles.numberInput}
+        value={settings.fontSize || 100}
+        onChange={(e) => {
+          const val = parseFloat(e.target.value);
+          if (!isNaN(val)) handleChange("fontSize", Math.max(10, Math.min(500, val)));
+        }}
+      />
+      <div className={styles.buttons}>
+         <button type="button" onClick={() => handleChange("fontSize", Math.min(500, (settings.fontSize || 100) + 5))}>+</button>
+        <button type="button" onClick={() => handleChange("fontSize", Math.min(500, (settings.fontSize || 100) - 5))}>−</button>
+       
+      </div>
+    </div>
+  </div>
+  <p className={styles.helperText}>
+    The current font size is {settings.fontSize || 100}
+  </p>
+</div>
+
         <div className={styles.footer}>
           <button onClick={onClose}>Close</button>
         </div>

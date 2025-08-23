@@ -19,8 +19,9 @@ export default function FlashTest() {
   const showTimerRef = useRef(null);
   const gapTimerRef = useRef(null);
   const resultTimerRef = useRef(null);
+  const answerTimerRef = useRef(null);
 
-  // ⚙️ Configurações (agora com subtractions e continuous opcionais)
+  // ⚙️ Configurações
   const [settings, setSettings] = useState({
     digits: 1,
     count: 5,
@@ -28,8 +29,9 @@ export default function FlashTest() {
     intervalTime: 300,
     voice: false,
     language: "pt-BR",
-    subtractions: false, // accessory
-    continuous: false,   // accessory
+    subtractions: false,
+    continuous: false,
+    fontSize: 100, // controla APENAS números e símbolos (= ? + -)
   });
 
   const handleChange = (field, value) => {
@@ -38,35 +40,39 @@ export default function FlashTest() {
 
   // utility: limpa timers ativos
   const clearAllTimers = () => {
-    if (showTimerRef.current) {
-      clearTimeout(showTimerRef.current);
-      showTimerRef.current = null;
-    }
-    if (gapTimerRef.current) {
-      clearTimeout(gapTimerRef.current);
-      gapTimerRef.current = null;
-    }
-    if (resultTimerRef.current) {
-      clearTimeout(resultTimerRef.current);
-      resultTimerRef.current = null;
-    }
+    [showTimerRef, gapTimerRef, resultTimerRef, answerTimerRef].forEach((ref) => {
+      if (ref.current) {
+        clearTimeout(ref.current);
+        ref.current = null;
+      }
+    });
   };
 
-  // 🔢 Gera sequência (se subtractions ativado, randomiza sinal para metade dos itens)
+  // 🔢 Gera sequência (resultado final ≥ 0)
   const generateSequence = () => {
     const seq = [];
+    let runningTotal = 0;
+
     for (let i = 0; i < settings.count; i++) {
       const min = Math.pow(10, Math.max(0, settings.digits - 1));
       const max = Math.pow(10, settings.digits) - 1;
-      // edge: digits=1 -> min=1, max=9
       const n = Math.floor(Math.random() * (max - min + 1)) + min;
-      const val = settings.subtractions && Math.random() > 0.5 ? -n : n;
+
+      let val = n;
+      if (settings.subtractions && Math.random() > 0.5) {
+        if (runningTotal - n >= 0) {
+          val = -n;
+        }
+      }
+
       seq.push(val);
+      runningTotal += val;
     }
+
     return seq;
   };
 
-  // start a single sequence (não altera isRunning)
+  // start uma sequência
   const startSequence = () => {
     clearAllTimers();
     const seq = generateSequence();
@@ -79,16 +85,13 @@ export default function FlashTest() {
     setScore(null);
   };
 
-  // ▶️ Start (se continuous marcado -> entra em ciclo; caso contrário executa só um teste)
+  // ▶️ Start
   const startTest = () => {
-    if (settings.continuous) {
-      // ativar ciclo contínuo
-      setIsRunning(true);
-    }
+    setIsRunning(true);
     startSequence();
   };
 
-  // ⏹️ Stop ciclo contínuo
+  // ⏹️ Stop
   const stopTest = () => {
     setIsRunning(false);
     clearAllTimers();
@@ -100,46 +103,33 @@ export default function FlashTest() {
   };
 
   const replayTest = () => {
-    // replay: inicia outra sequência (sem alterar isRunning)
     startSequence();
   };
 
-  // 🔊 fala número (se voz ativada)
+  // 🔊 fala número
   const speakNumber = (num) => {
-    if (!settings.voice) return;
-    if (!window.speechSynthesis) return;
+    if (!settings.voice || !window.speechSynthesis) return;
     try {
       const utterance = new SpeechSynthesisUtterance(num.toString());
       utterance.lang = settings.language;
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utterance);
-    } catch (e) {
-      // swallow if speech synthesis throws
-      // console.warn("Speech error", e);
-    }
+    } catch {}
   };
 
-  // ⏱️ Lógica de exibição: cada número tem duas fases (visível por flashTime, depois intervalo)
+  // ⏱️ lógica de exibição dos números
   useEffect(() => {
     if (stage !== "flash") return;
 
-    // se passou do último elemento -> ir para answer (modo normal) ou result (modo contínuo)
     if (currentIndex >= sequence.length) {
       setIsShowing(false);
-      if (settings.continuous && isRunning) {
-        setStage("result"); // mostra "= X" diretamente
-      } else {
-        setStage("answer"); // mostra "?" e permite input
-      }
+      setStage("answer"); // sempre vai para "answer"
       return;
     }
 
-    // mostra número atual
     setIsShowing(true);
     speakNumber(sequence[currentIndex]);
 
-    // start timers: mostrar -> esconder -> intervalo -> próximo
-    // guardamos timers em refs para limpar corretamente
     const showTimer = setTimeout(() => {
       setIsShowing(false);
       gapTimerRef.current = setTimeout(() => {
@@ -150,15 +140,8 @@ export default function FlashTest() {
     showTimerRef.current = showTimer;
 
     return () => {
-      // cleanup sempre limpa ambos
-      if (showTimerRef.current) {
-        clearTimeout(showTimerRef.current);
-        showTimerRef.current = null;
-      }
-      if (gapTimerRef.current) {
-        clearTimeout(gapTimerRef.current);
-        gapTimerRef.current = null;
-      }
+      clearTimeout(showTimerRef.current);
+      clearTimeout(gapTimerRef.current);
     };
   }, [
     stage,
@@ -168,9 +151,23 @@ export default function FlashTest() {
     settings.intervalTime,
     settings.language,
     settings.voice,
-    settings.continuous,
-    isRunning,
   ]);
+
+  // 👁️ mostra "?" no contínuo por 1s e depois passa para result
+  useEffect(() => {
+    if (stage !== "answer" || !settings.continuous || !isRunning) return;
+
+    answerTimerRef.current = setTimeout(() => {
+      setStage("result");
+    }, 1000);
+
+    return () => {
+      if (answerTimerRef.current) {
+        clearTimeout(answerTimerRef.current);
+        answerTimerRef.current = null;
+      }
+    };
+  }, [stage, settings.continuous, isRunning]);
 
   // ✅ Verificar resposta (modo normal)
   const checkAnswer = () => {
@@ -178,67 +175,58 @@ export default function FlashTest() {
     setStage("result");
   };
 
-  // ♾️ Comportamento no resultado:
-  // - modo contínuo + isRunning: mostra "= X", aguarda 2000ms e inicia nova sequência
-  // - modo normal: mostra acerto/erro até o usuário iniciar novo teste
+  // ♾️ comportamento no resultado
   useEffect(() => {
-    // Limpa se entrar em outro stage
     if (stage !== "result") {
-      if (resultTimerRef.current) {
-        clearTimeout(resultTimerRef.current);
-        resultTimerRef.current = null;
-      }
+      clearTimeout(resultTimerRef.current);
+      resultTimerRef.current = null;
       return;
     }
 
     if (settings.continuous && isRunning) {
-      // mostra "= X" por 2s e inicia próximo
       resultTimerRef.current = setTimeout(() => {
         startSequence();
       }, 2000);
-      return () => {
-        if (resultTimerRef.current) {
-          clearTimeout(resultTimerRef.current);
-          resultTimerRef.current = null;
-        }
-      };
+      return () => clearTimeout(resultTimerRef.current);
+    } else {
+      setIsRunning(false); // garante que no modo normal volte para idle
     }
-
-    // se não for modo contínuo, não iniciamos nada automático
-    return undefined;
   }, [stage, settings.continuous, isRunning]);
 
-  // Se desmarcar continuous enquanto estiver rodando, paramos o ciclo
+  // se desligar continuous enquanto roda → para
   useEffect(() => {
-    if (!settings.continuous && isRunning) {
+    if (!settings.continuous && isRunning && stage === "idle") {
       stopTest();
     }
-    // se marcar continuous não inicia automaticamente (usuário precisa clicar Play)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.continuous]);
 
-  // cleanup global ao desmontar
+  // cleanup global
   useEffect(() => {
-    return () => {
-      clearAllTimers();
-    };
+    return () => clearAllTimers();
   }, []);
+
+  // helper para renderizar APENAS os símbolos/dígitos grandes
+  const Big = ({ children }) => (
+    <span style={{ fontSize: settings.fontSize || 72, lineHeight: 1 }}>
+      {children}
+    </span>
+  );
 
   return (
     <div className={styles.container}>
       {/* Área do número */}
       <div className={styles.flashArea}>
         {stage === "flash" && currentIndex < sequence.length && (
-          isShowing ? sequence[currentIndex] : ""
+          isShowing ? <Big>{String(sequence[currentIndex])}</Big> : ""
         )}
 
-        {/* modo normal: ponto de interrogação aguardando resposta */}
-        {stage === "answer" && !settings.continuous && "?"}
+        {/* mostra ? em answer (tanto normal quanto contínuo) */}
+        {stage === "answer" && <Big>?</Big>}
 
         {/* resultado */}
         {stage === "result" && (
           settings.continuous && isRunning ? (
-            <div>= {correctAnswer}</div> // ciclo contínuo: mostra "= X"
+            <Big>= {correctAnswer}</Big>
           ) : (
             <div>
               {score ? "✅ Acertou!" : "❌ Errou"}<br />
@@ -250,36 +238,33 @@ export default function FlashTest() {
 
       {/* Barra inferior */}
       <div className={styles.bottomBar}>
-        {/* Play / Stop logic */}
-        {settings.continuous ? (
-          isRunning ? (
-            <button className={`${styles.button} ${styles.stop}`} onClick={stopTest}>
-              Stop
-            </button>
-          ) : (
-            <button className={`${styles.button} ${styles.play}`} onClick={startTest}>
-              Play
-            </button>
-          )
+        {isRunning ? (
+          <button className={`${styles.button} ${styles.stop}`} onClick={stopTest}>
+            Stop
+          </button>
         ) : (
           <>
             <button className={`${styles.button} ${styles.play}`} onClick={startTest}>
               Play
             </button>
-            <button className={`${styles.button} ${styles.replay}`} onClick={replayTest}>
-              Replay
-            </button>
+            {!settings.continuous && (
+              <button className={`${styles.button} ${styles.replay}`} onClick={replayTest}>
+                Replay
+              </button>
+            )}
           </>
         )}
 
-        <button className={`${styles.button} ${styles.settings}`} onClick={() => setShowSettings(true)}>
+        <button
+          className={`${styles.button} ${styles.settings}`}
+          onClick={() => setShowSettings(true)}
+        >
           Settings
         </button>
         <button className={`${styles.button} ${styles.history}`}>
           History
         </button>
 
-        {/* Input e Check aparecem apenas no modo normal */}
         {!settings.continuous && (
           <>
             <input
@@ -301,7 +286,6 @@ export default function FlashTest() {
         )}
       </div>
 
-      {/* Modal */}
       {showSettings && (
         <SettingsModal
           settings={settings}
