@@ -22,35 +22,36 @@ export default function FlashTest() {
   // controla ciclo contínuo
   const [isRunning, setIsRunning] = useState(false);
 
-  // timers refs para limpar corretamente
+  // controla disponibilidade do Replay
+  const [canReplay, setCanReplay] = useState(false);
+
+  // timers refs
   const showTimerRef = useRef(null);
-  const gapTimerRef = useRef(null);
   const resultTimerRef = useRef(null);
   const answerTimerRef = useRef(null);
 
-  // input ref para focar automaticamente
+  // input ref
   const inputRef = useRef(null);
 
   // ⚙️ Configurações
   const [settings, setSettings] = useState({
     digits: 1,
     count: 5,
-    flashTime: 800,
-    intervalTime: 300,
+    flashTime: 500,
+    intervalTime: 1000,
     voice: false,
     language: "pt-BR",
     subtractions: false,
     continuous: false,
-    fontSize: 100, // controla APENAS números e símbolos (= ? + -)
+    fontSize: 100,
   });
 
   const handleChange = (field, value) => {
     setSettings((prev) => ({ ...prev, [field]: value }));
   };
 
-  // utility: limpa timers ativos
   const clearAllTimers = () => {
-    [showTimerRef, gapTimerRef, resultTimerRef, answerTimerRef].forEach((ref) => {
+    [showTimerRef, resultTimerRef, answerTimerRef].forEach((ref) => {
       if (ref.current) {
         clearTimeout(ref.current);
         ref.current = null;
@@ -58,7 +59,7 @@ export default function FlashTest() {
     });
   };
 
-  // 🔢 Gera sequência (resultado final ≥ 0)
+  // 🔢 Gera sequência
   const generateSequence = () => {
     const seq = [];
     let runningTotal = 0;
@@ -82,7 +83,6 @@ export default function FlashTest() {
     return seq;
   };
 
-  // salva sequência no histórico (apenas no modo normal)
   const saveToHistory = (seq) => {
     const expression = seq
       .map((n, idx) =>
@@ -95,7 +95,6 @@ export default function FlashTest() {
     });
   };
 
-  // start uma sequência
   const startSequence = () => {
     clearAllTimers();
     const seq = generateSequence();
@@ -106,15 +105,14 @@ export default function FlashTest() {
     setIsShowing(true);
     setUserAnswer("");
     setScore(null);
+    setCanReplay(false);
   };
 
-  // ▶️ Start
   const startTest = () => {
     setIsRunning(true);
     startSequence();
   };
 
-  // ⏹️ Stop
   const stopTest = () => {
     setIsRunning(false);
     clearAllTimers();
@@ -123,66 +121,98 @@ export default function FlashTest() {
     setCurrentIndex(0);
     setIsShowing(false);
     setUserAnswer("");
+    setCanReplay(false);
   };
 
   const replayTest = () => {
-    startSequence();
-  };
-
-  // 🔊 fala número
-  const speakNumber = (num) => {
-    if (!settings.voice || !window.speechSynthesis) return;
-    try {
-      const utterance = new SpeechSynthesisUtterance(num.toString());
-      utterance.lang = settings.language;
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utterance);
-    } catch {}
-  };
-
-  // ⏱️ lógica de exibição dos números
-  useEffect(() => {
-    if (stage !== "flash") return;
-
-    if (currentIndex >= sequence.length) {
-      setIsShowing(false);
-      setStage("answer"); // sempre vai para "answer"
-      return;
-    }
-
+    if (!canReplay || sequence.length === 0) return;
+    clearAllTimers();
+    setStage("flash");
+    setCurrentIndex(0);
     setIsShowing(true);
-    speakNumber(sequence[currentIndex]);
+    setUserAnswer("");
+    setScore(null);
+  };
 
-    const showTimer = setTimeout(() => {
-      setIsShowing(false);
-      gapTimerRef.current = setTimeout(() => {
-        setCurrentIndex((prev) => prev + 1);
-      }, Math.max(0, settings.intervalTime));
-    }, Math.max(0, settings.flashTime));
+  // 🔊 fala número (Promise)
+  const speakNumber = (num, isResult = false) => {
+    return new Promise((resolve) => {
+      if (!settings.voice || !window.speechSynthesis) {
+        resolve();
+        return;
+      }
 
-    showTimerRef.current = showTimer;
+      try {
+        let text;
+        if (isResult) {
+          text = settings.language.startsWith("pt")
+            ? `igual a ${num}`
+            : `equals ${num}`;
+        } else {
+          text = num.toString();
+        }
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = settings.language;
+
+        utterance.onend = () => resolve();
+        utterance.onerror = () => resolve();
+
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+      } catch {
+        resolve();
+      }
+    });
+  };
+
+  // execução do flash controlada por voz
+  useEffect(() => {
+    if (stage !== "flash" || sequence.length === 0) return;
+
+    let cancelled = false;
+
+    const run = async () => {
+      for (let i = currentIndex; i < sequence.length; i++) {
+        if (cancelled) return;
+
+        setCurrentIndex(i);
+        setIsShowing(true);
+
+        await speakNumber(sequence[i]); // espera a fala
+        if (cancelled) return;
+
+        await new Promise((res) =>
+          setTimeout(res, Math.max(0, settings.flashTime))
+        );
+
+        setIsShowing(false);
+        await new Promise((res) =>
+          setTimeout(res, Math.max(0, settings.intervalTime))
+        );
+      }
+
+      if (!cancelled) {
+        setStage("answer");
+        setCanReplay(true);
+      }
+    };
+
+    run();
 
     return () => {
-      clearTimeout(showTimerRef.current);
-      clearTimeout(gapTimerRef.current);
+      cancelled = true;
     };
-  }, [
-    stage,
-    currentIndex,
-    sequence,
-    settings.flashTime,
-    settings.intervalTime,
-    settings.language,
-    settings.voice,
-  ]);
+  }, [stage, sequence, settings.flashTime, settings.intervalTime]);
 
-  // 👁️ mostra "?" no contínuo por 1s e depois passa para result
+  // 👁️ mostra "?" no contínuo
   useEffect(() => {
     if (stage !== "answer" || !settings.continuous || !isRunning) return;
 
-    answerTimerRef.current = setTimeout(() => {
+    answerTimerRef.current = setTimeout(async () => {
+      await speakNumber(correctAnswer, true);
       setStage("result");
-    }, 2000); // 3 segundos para a resposta aparecer "=X"
+    }, 2000);
 
     return () => {
       if (answerTimerRef.current) {
@@ -190,18 +220,16 @@ export default function FlashTest() {
         answerTimerRef.current = null;
       }
     };
-  }, [stage, settings.continuous, isRunning]);
+  }, [stage, settings.continuous, isRunning, correctAnswer]);
 
-  // ✅ Verificar resposta (modo normal)
   const checkAnswer = () => {
     setScore(Number(userAnswer) === correctAnswer);
     setStage("result");
     if (!settings.continuous) {
-      saveToHistory(sequence); // salva apenas em modo normal
+      saveToHistory(sequence);
     }
   };
 
-  // ♾️ comportamento no resultado
   useEffect(() => {
     if (stage !== "result") {
       clearTimeout(resultTimerRef.current);
@@ -212,80 +240,64 @@ export default function FlashTest() {
     if (settings.continuous && isRunning) {
       resultTimerRef.current = setTimeout(() => {
         startSequence();
-      }, 2000); // 2 segundos para começar de novo
+      }, 2000);
       return () => clearTimeout(resultTimerRef.current);
     } else {
-      setIsRunning(false); // garante que no modo normal volte para idle
+      setIsRunning(false);
     }
   }, [stage, settings.continuous, isRunning]);
 
-  // se desligar continuous enquanto roda → para
   useEffect(() => {
     if (!settings.continuous && isRunning && stage === "idle") {
       stopTest();
     }
-  }, [settings.continuous]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [settings.continuous]);
 
-  // cleanup global
   useEffect(() => {
     return () => clearAllTimers();
   }, []);
 
-  // helper para renderizar APENAS os símbolos/dígitos grandes
   const Big = ({ children }) => (
     <span style={{ fontSize: settings.fontSize || 72, lineHeight: 1 }}>
       {children}
     </span>
   );
 
-  // Focar input quando entrar em "answer"
   useEffect(() => {
     if (stage === "answer" && inputRef.current) {
       inputRef.current.focus({ preventScroll: true });
-      // opcional: seleciona qualquer valor já digitado
       inputRef.current.select?.();
     }
   }, [stage]);
 
-  // === Atalhos de teclado ===
+  // atalhos
   useEffect(() => {
     const handleKeyDown = (e) => {
       const key = e.key.toLowerCase();
 
-      // Sempre permitir Enter para checar, mesmo com foco no input
       if (key === "enter" && stage === "answer") {
         e.preventDefault();
         checkAnswer();
         return;
       }
 
-      // Ignora outros atalhos se estiver digitando em um input/textarea
       const tag = e.target.tagName.toLowerCase();
       if (tag === "input" || tag === "textarea") return;
 
       switch (key) {
-        case "p": // play/stop
-          if (isRunning) {
-            stopTest();
-          } else {
-            startTest();
-          }
+        case "p":
+          if (isRunning) stopTest();
+          else startTest();
           break;
-
-        case "r": // replay (se já teve sequência)
-          if (!isRunning && sequence.length > 0) {
-            replayTest();
-          }
+        case "r":
+          if (canReplay) replayTest();
           break;
-
-        case "s": // abre settings
+        case "s":
           setShowSettings(true);
           break;
-
-        case "h": // abre histórico
+        case "h":
           setShowHistory(true);
           break;
-
         default:
           break;
       }
@@ -293,20 +305,15 @@ export default function FlashTest() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isRunning, sequence.length, stage, userAnswer]); // deps atualizados
+  }, [isRunning, sequence.length, stage, canReplay]);
 
   return (
     <div className={styles.container}>
-      {/* Área do número */}
       <div className={styles.flashArea}>
         {stage === "flash" && currentIndex < sequence.length && (
           isShowing ? <Big>{String(sequence[currentIndex])}</Big> : ""
         )}
-
-        {/* mostra ? em answer (tanto normal quanto contínuo) */}
         {stage === "answer" && <Big>?</Big>}
-
-        {/* resultado */}
         {stage === "result" && (
           settings.continuous && isRunning ? (
             <Big>= {correctAnswer}</Big>
@@ -319,23 +326,25 @@ export default function FlashTest() {
         )}
       </div>
 
-      {/* Barra inferior */}
       <div className={styles.bottomBar}>
         {isRunning ? (
           <button className={`${styles.button} ${styles.stop}`} onClick={stopTest}>
             Stop
           </button>
         ) : (
-          <>
-            <button className={`${styles.button} ${styles.play}`} onClick={startTest}>
-              Play
-            </button>
-            {!settings.continuous && (
-              <button className={`${styles.button} ${styles.replay}`} onClick={replayTest}>
-                Replay
-              </button>
-            )}
-          </>
+          <button className={`${styles.button} ${styles.play}`} onClick={startTest}>
+            Play
+          </button>
+        )}
+
+        {!settings.continuous && (
+          <button
+            className={`${styles.button} ${canReplay ? styles.replayEnabled : styles.replayDisabled}`}
+            onClick={replayTest}
+            disabled={!canReplay}
+          >
+            Replay
+          </button>
         )}
 
         <button

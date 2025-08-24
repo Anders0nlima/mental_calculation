@@ -45,3 +45,41 @@
   border-bottom: 1px solid #333;
   font-family: monospace;
 }
+
+/* -------------------
+   Media Queries
+--------------------*/
+
+/* Tablets */
+@media (max-width: 1024px) {
+  .modal {
+    max-width: 400px;
+    padding: 14px;
+  }
+
+  .closeBtn {
+    font-size: 18px;
+  }
+
+  .historyItem {
+    padding: 5px 0;
+    font-size: 14px;
+  }
+}
+
+/* Smartphones */
+@media (max-width: 768px) {
+  .modal {
+    max-width: 90%;
+    padding: 12px;
+  }
+
+  .closeBtn {
+    font-size: 16px;
+  }
+
+  .historyItem {
+    padding: 4px 0;
+    font-size: 13px;
+  }
+}

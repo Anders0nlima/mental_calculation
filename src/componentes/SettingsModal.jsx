@@ -14,11 +14,72 @@ export default function SettingsModal({ settings, handleChange, onClose }) {
     return Math.min(max, Math.max(min, n));
   };
 
-  const safeParseMs = (val, def = 1000, min = 50, max = 5000) => {
+  const safeParseMs = (val, def = 1000, min = 500, max = 5000) => {
     const n = parseInt(val, 10);
     if (!Number.isFinite(n)) return def;
     return Math.min(max, Math.max(min, n));
   };
+
+  // Mantém sempre o settings mais recente para o loop de "hold"
+  const settingsRef = React.useRef(settings);
+  React.useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  // Hook "segurar para repetir"
+  const useHoldAction = (stepFn, delay = 100) => {
+    const intervalRef = React.useRef(null);
+
+    const stop = React.useCallback(() => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      window.removeEventListener("mouseup", stop);
+      window.removeEventListener("touchend", stop);
+      window.removeEventListener("mouseleave", stop);
+    }, []);
+
+    const start = React.useCallback((e) => {
+      e?.preventDefault?.();
+      if (intervalRef.current) return;
+      stepFn(); // executa uma vez imediatamente
+      intervalRef.current = setInterval(stepFn, delay);
+      // Garante que pare mesmo se soltar fora do botão
+      window.addEventListener("mouseup", stop);
+      window.addEventListener("touchend", stop);
+      window.addEventListener("mouseleave", stop);
+    }, [stepFn, delay, stop]);
+
+    // Cleanup
+    React.useEffect(() => stop, [stop]);
+
+    return { start, stop };
+  };
+
+  // Flash (usa settingsRef para sempre ler o valor atual)
+  const incFlash = useHoldAction(() => {
+    const cur = settingsRef.current.flashTime ?? 1000;
+    const next = Math.min(5000, cur + 50);
+    handleChange("flashTime", next);
+  });
+  const decFlash = useHoldAction(() => {
+    const cur = settingsRef.current.flashTime ?? 1000;
+    const next = Math.max(50, cur - 50); //500
+    handleChange("flashTime", next);
+  });
+
+  // Timeout
+  const incTimeout = useHoldAction(() => {
+    const cur = settingsRef.current.intervalTime ?? 1000;
+    const next = Math.min(5000, cur + 50);
+    handleChange("intervalTime", next);
+  });
+  const decTimeout = useHoldAction(() => {
+    const cur = settingsRef.current.intervalTime ?? 1000;
+    const next = Math.max(50, cur - 50);
+    handleChange("intervalTime", next);
+  });
 
   return (
     <div className={styles.overlay}>
@@ -48,7 +109,7 @@ export default function SettingsModal({ settings, handleChange, onClose }) {
           </div>
 
           <div className={styles.inputGroup}>
-            <span className={styles.prepend}>Qtd. Números</span>
+            <span className={styles.prepend}>Number of rows</span>
             <div className={styles.numberControl}>
               <input
                 type="number"
@@ -76,34 +137,58 @@ export default function SettingsModal({ settings, handleChange, onClose }) {
               <input
                 type="number"
                 className={styles.numberInput}
-                value={settings.flashTime || 1000}
+                value={settings.flashTime ?? 1000}
                 onChange={(e) => {
-                  const val = safeParseMs(e.target.value, 1000, 50, 5000);
+                  const val = safeParseMs(e.target.value, 1000, 500, 5000);
                   handleChange("flashTime", val);
                 }}
               />
               <div className={styles.buttons}>
-                <button type="button" onClick={() => handleChange("flashTime", Math.min(5000, (settings.flashTime || 1000) + 50))}>▲</button>
-                <button type="button" onClick={() => handleChange("flashTime", Math.max(50, (settings.flashTime || 1000) - 50))}>▼</button>
+                <button
+                  type="button"
+                  onMouseDown={incFlash.start}
+                  onTouchStart={incFlash.start}
+                >
+                  ▲
+                </button>
+                <button
+                  type="button"
+                  onMouseDown={decFlash.start}
+                  onTouchStart={decFlash.start}
+                >
+                  ▼
+                </button>
               </div>
             </div>
           </div>
 
           <div className={styles.inputGroup}>
-            <span className={styles.prepend}>Intervalo (ms)</span>
+            <span className={styles.prepend}>Timeout (ms)</span>
             <div className={styles.numberControl}>
               <input
                 type="number"
                 className={styles.numberInput}
-                value={settings.intervalTime || 1000}
+                value={settings.intervalTime ?? 1000}
                 onChange={(e) => {
-                  const val = safeParseMs(e.target.value, 1000, 50, 5000);
+                  const val = safeParseMs(e.target.value, 1000, 500, 5000);
                   handleChange("intervalTime", val);
                 }}
               />
               <div className={styles.buttons}>
-                <button type="button" onClick={() => handleChange("intervalTime", Math.min(5000, (settings.intervalTime || 1000) + 50))}>▲</button>
-                <button type="button" onClick={() => handleChange("intervalTime", Math.max(50, (settings.intervalTime || 1000) - 50))}>▼</button>
+                <button
+                  type="button"
+                  onMouseDown={incTimeout.start}
+                  onTouchStart={incTimeout.start}
+                >
+                  ▲
+                </button>
+                <button
+                  type="button"
+                  onMouseDown={decTimeout.start}
+                  onTouchStart={decTimeout.start}
+                >
+                  ▼
+                </button>
               </div>
             </div>
           </div>
@@ -113,36 +198,35 @@ export default function SettingsModal({ settings, handleChange, onClose }) {
         <div className={styles.section}>
           <h4>Voice</h4>
           <div className={styles.inputGroup}>
-            <span className={styles.prepend}>Ler números em voz alta</span>
+            <span className={styles.prepend}>Read numbers aloud</span>
             <button
               type="button"
               className={`${styles.toggleBtn} ${settings.voice ? styles.active : ""}`}
               onClick={() => handleChange("voice", !settings.voice)}
             >
-              {settings.voice ? "🔊 Ativado" : "🔇 Desativado"}
+              {settings.voice ? "🔊 On" : "🔇 Off"}
             </button>
           </div>
 
           <div className={styles.inputGroup}>
-            <span className={styles.prepend}>Idioma</span>
+            <span className={styles.prepend}>Language</span>
             <select
               className={styles.select}
               value={settings.language}
               onChange={(e) => handleChange("language", e.target.value)}
             >
-              <option value="pt-BR">Português</option>
-              <option value="en-US">Inglês</option>
-              <option value="es-ES">Espanhol</option>
-              <option value="fr-FR">Francês</option>
-              <option value="de-DE">Alemão</option>
+              <option value="pt-BR">Portuguese</option>
+              <option value="en-US">English</option>
+              <option value="es-ES">Spanish</option>
+              <option value="fr-FR">French</option>
+              <option value="de-DE">German</option>
             </select>
           </div>
         </div>
 
-        {/* Mode of operation (accessories) */}
+        {/* Mode of operation */}
         <div className={styles.section}>
           <h4>Mode of operation</h4>
-
           <div className={styles.inputGroup}>
             <label className={styles.checkboxRow}>
               <input
@@ -150,7 +234,7 @@ export default function SettingsModal({ settings, handleChange, onClose }) {
                 checked={settings.subtractions || false}
                 onChange={(e) => handleChange("subtractions", e.target.checked)}
               />
-              Subtractions (mix + and -)
+              Subtractions
             </label>
           </div>
 
@@ -183,8 +267,7 @@ export default function SettingsModal({ settings, handleChange, onClose }) {
               />
               <div className={styles.buttons}>
                 <button type="button" onClick={() => handleChange("fontSize", Math.min(500, (settings.fontSize || 100) + 5))}>+</button>
-                <button type="button" onClick={() => handleChange("fontSize", Math.min(500, (settings.fontSize || 100) - 5))}>−</button>
-
+                <button type="button" onClick={() => handleChange("fontSize", Math.max(10, (settings.fontSize || 100) - 5))}>−</button>
               </div>
             </div>
           </div>

@@ -89,3 +89,62 @@
   margin-left: 5px;
   padding: 5px;
 }
+
+.replayEnabled {
+  background-color: #4caf50; /* verde */
+  color: white;
+  cursor: pointer;
+}
+
+.replayDisabled {
+  background-color: #888; /* cinza */
+  color: #ccc;
+  cursor: not-allowed;
+}
+
+/* -------------------
+   Media Queries
+--------------------*/
+
+/* Tablets */
+@media (max-width: 1024px) {
+  .flashArea {
+    font-size: 56px;
+  }
+
+  .button {
+    font-size: 14px;
+    padding: 5px 12px;
+  }
+
+  .bottomBar {
+    padding: 8px 15px;
+  }
+}
+
+/* Smartphones */
+@media (max-width: 768px) {
+  .flashArea {
+    font-size: 42px;
+  }
+
+  .button {
+    font-size: 13px;
+    padding: 4px 10px;
+  }
+
+  .bottomBar {
+    padding: 6px 10px;
+    gap: 5px;
+  }
+
+  .inputAnswer {
+    font-size: 14px;
+    padding: 5px;
+  }
+
+  .modal {
+    padding: 15px;
+    max-width: 90%;
+  }
+}
