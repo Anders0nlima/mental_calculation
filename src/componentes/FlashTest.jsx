@@ -3,6 +3,55 @@ import styles from "./FlashTest.module.css";
 import SettingsModal from "./SettingsModal";
 import HistoryModal from "./HistoryModal";
 
+// Converte número para palavras em PT-BR (até bilhões)
+function numberToWordsPtBR(n) {
+  if (n === 0) return "zero";
+
+  const unidades = ["", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"];
+  const dezenas = ["", "", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa"];
+  const especiais = ["dez", "onze", "doze", "treze", "catorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove"];
+  const centenas = ["", "cento", "duzentos", "trezentos", "quatrocentos", "quinhentos", "seiscentos", "setecentos", "oitocentos", "novecentos"];
+
+  function abaixoDeMil(num) {
+    if (num === 0) return "";
+    if (num === 100) return "cem";
+
+    let str = "";
+    const c = Math.floor(num / 100);
+    const d = Math.floor((num % 100) / 10);
+    const u = num % 10;
+
+    if (c > 0) str += centenas[c];
+    if (d === 1) {
+      if (str) str += " e ";
+      str += especiais[u];
+      return str;
+    }
+    if (d > 1) {
+      if (str) str += " e ";
+      str += dezenas[d];
+    }
+    if (u > 0) {
+      if (str) str += " e ";
+      str += unidades[u];
+    }
+    return str;
+  }
+
+  const partes = [];
+  const bilhoes = Math.floor(n / 1_000_000_000);
+  const milhoes = Math.floor((n % 1_000_000_000) / 1_000_000);
+  const milhares = Math.floor((n % 1_000_000) / 1000);
+  const resto = n % 1000;
+
+  if (bilhoes > 0) partes.push(bilhoes === 1 ? "um bilhão" : abaixoDeMil(bilhoes) + " bilhões");
+  if (milhoes > 0) partes.push(milhoes === 1 ? "um milhão" : abaixoDeMil(milhoes) + " milhões");
+  if (milhares > 0) partes.push(milhares === 1 ? "mil" : abaixoDeMil(milhares) + " mil");
+  if (resto > 0) partes.push(abaixoDeMil(resto));
+
+  return partes.join(" ");
+}
+
 export default function FlashTest() {
   const [stage, setStage] = useState("idle"); // idle | flash | answer | result
   const [sequence, setSequence] = useState([]);
@@ -33,7 +82,7 @@ export default function FlashTest() {
   // input ref
   const inputRef = useRef(null);
 
-  // ⚙️ Configurações
+  // Configurações
   const [settings, setSettings] = useState({
     digits: 1,
     count: 5,
@@ -59,7 +108,7 @@ export default function FlashTest() {
     });
   };
 
-  // 🔢 Gera sequência
+  // Gera sequência
   const generateSequence = () => {
     const seq = [];
     let runningTotal = 0;
@@ -134,7 +183,7 @@ export default function FlashTest() {
     setScore(null);
   };
 
-  // 🔊 fala número (Promise)
+  // fala número (Promise) — agora trata negativos com "menos"
   const speakNumber = (num, isResult = false) => {
     return new Promise((resolve) => {
       if (!settings.voice || !window.speechSynthesis) {
@@ -143,13 +192,24 @@ export default function FlashTest() {
       }
 
       try {
-        let text;
-        if (isResult) {
-          text = settings.language.startsWith("pt")
-            ? `igual a ${num}`
-            : `equals ${num}`;
+        const isNegative = Number(num) < 0;
+        const absNum = Math.abs(Number(num));
+        let text = "";
+
+        if (settings.language.startsWith("pt")) {
+          const words = numberToWordsPtBR(absNum);
+          if (isResult) {
+            text = isNegative ? `igual a menos ${words}` : `igual a ${words}`;
+          } else {
+            text = isNegative ? `menos ${words}` : words;
+          }
         } else {
-          text = num.toString();
+          // fallback para outras línguas: prefixa minus quando negativo
+          if (isResult) {
+            text = isNegative ? `equals minus ${absNum}` : `equals ${absNum}`;
+          } else {
+            text = isNegative ? `minus ${absNum}` : absNum.toString();
+          }
         }
 
         const utterance = new SpeechSynthesisUtterance(text);
@@ -158,7 +218,12 @@ export default function FlashTest() {
         utterance.onend = () => resolve();
         utterance.onerror = () => resolve();
 
-        window.speechSynthesis.cancel();
+        // cancela fala atual (evita sobreposição)
+        try {
+          window.speechSynthesis.cancel();
+        } catch (e) {
+          /* ignore */
+        }
         window.speechSynthesis.speak(utterance);
       } catch {
         resolve();
@@ -205,12 +270,11 @@ export default function FlashTest() {
     };
   }, [stage, sequence, settings.flashTime, settings.intervalTime]);
 
-  // 👁️ mostra "?" no contínuo
+  // mostra "?" no contínuo
   useEffect(() => {
     if (stage !== "answer" || !settings.continuous || !isRunning) return;
 
-    answerTimerRef.current = setTimeout(async () => {
-      await speakNumber(correctAnswer, true);
+    answerTimerRef.current = setTimeout(() => {
       setStage("result");
     }, 2000);
 
@@ -220,7 +284,36 @@ export default function FlashTest() {
         answerTimerRef.current = null;
       }
     };
-  }, [stage, settings.continuous, isRunning, correctAnswer]);
+  }, [stage, settings.continuous, isRunning]);
+
+  // fala resultado (sempre que entrar em result e voice = true)
+  // Agora: se em continuous, após terminar a fala chamamos startSequence()
+  useEffect(() => {
+    if (stage !== "result" || !settings.voice) return;
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (cancelled) return;
+      await speakNumber(correctAnswer, true);
+      if (cancelled) return;
+
+      // Se está no modo contínuo, só avançamos pra próxima sequência depois da fala terminar.
+      if (settings.continuous && isRunning) {
+        // limpa fallback se existir
+        if (resultTimerRef.current) {
+          clearTimeout(resultTimerRef.current);
+          resultTimerRef.current = null;
+        }
+        startSequence();
+      }
+    }, 200); // pequeno delay para garantir render
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // adicionamos settings.continuous e isRunning porque usamos aqui
+  }, [stage, correctAnswer, settings.voice, settings.continuous, isRunning]);
 
   const checkAnswer = () => {
     setScore(Number(userAnswer) === correctAnswer);
@@ -230,22 +323,41 @@ export default function FlashTest() {
     }
   };
 
+  // Antes: se modo contínuo, havia um setTimeout fixo para iniciar a próxima sequência.
+  // Agora: só usamos esse timeout quando voice está desligado; se voice está ligado,
+  // a lógica de startSequence() fica no efeito acima (chamado após speakNumber finalizar).
   useEffect(() => {
     if (stage !== "result") {
-      clearTimeout(resultTimerRef.current);
-      resultTimerRef.current = null;
+      if (resultTimerRef.current) {
+        clearTimeout(resultTimerRef.current);
+        resultTimerRef.current = null;
+      }
       return;
     }
 
     if (settings.continuous && isRunning) {
-      resultTimerRef.current = setTimeout(() => {
-        startSequence();
-      }, 2000);
-      return () => clearTimeout(resultTimerRef.current);
+      if (settings.voice) {
+        // fallback longo caso a fala NÃO seja disparada/terminada por algum motivo
+        resultTimerRef.current = setTimeout(() => {
+          resultTimerRef.current = null;
+          startSequence();
+        }, 10000); // 10s fallback
+      } else {
+        resultTimerRef.current = setTimeout(() => {
+          resultTimerRef.current = null;
+          startSequence();
+        }, 2000);
+      }
+      return () => {
+        if (resultTimerRef.current) {
+          clearTimeout(resultTimerRef.current);
+          resultTimerRef.current = null;
+        }
+      };
     } else {
       setIsRunning(false);
     }
-  }, [stage, settings.continuous, isRunning]);
+  }, [stage, settings.continuous, isRunning, settings.voice]);
 
   useEffect(() => {
     if (!settings.continuous && isRunning && stage === "idle") {

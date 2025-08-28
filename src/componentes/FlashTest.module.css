@@ -113,13 +113,21 @@
   }
 
   .button {
-    font-size: 14px;
-    padding: 5px 12px;
-  }
+  padding: 12px 20px;       /* mais alto e largo */
+  border: none;
+  font-size: 30px;          /* texto maior */
+  cursor: pointer;
+  font-weight: 800;
+}
 
-  .bottomBar {
-    padding: 8px 15px;
-  }
+ .bottomBar {
+  background-color: rgba(0, 0, 0, 0.199);
+  padding: 10px 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); /* cada botão ocupa no mínimo 100px */
+  gap: 10px;
+  align-items: center;
+}
 }
 
 /* Smartphones */
